@@ -4,6 +4,9 @@ Get usage and what model is being used within the Claude CLI.
 
 George had Claude create this plan to add a status line to the CLI.
 
+<img width="923" height="282" alt="image" src="https://github.com/user-attachments/assets/a722e742-96b4-4db4-87e8-44a2a5e440ea" />
+
+
 ## Setup
 
 To have Claude execute the status line plan, open Claude Code in this repo and ask it to implement the `statusline.md` file:
