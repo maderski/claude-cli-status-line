@@ -19,7 +19,19 @@ fi
 ctx_str=$(printf '%b[%s] %s%%%b' "$color" "$bar" "$pct_int" '\033[0m')
 
 # --- Model ---
-model=$(echo "$input" | jq -r '.model.display_name // empty')
+# Prefer settings.json (updated by model-advisor hook before each request)
+# over payload's display_name (reflects previous response's model)
+settings_model=$(jq -r '.model // empty' ~/.claude/settings.json 2>/dev/null)
+if [ -n "$settings_model" ]; then
+  case "$settings_model" in
+    *opus*)   model="Opus" ;;
+    *sonnet*) model="Sonnet" ;;
+    *haiku*)  model="Haiku" ;;
+    *)        model="$settings_model" ;;
+  esac
+else
+  model=$(echo "$input" | jq -r '.model.display_name // empty')
+fi
 if [ -n "$model" ]; then
   model_str=$(printf '%b%s%b' '\033[0;36m' "$model" '\033[0m')
 else
