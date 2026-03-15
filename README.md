@@ -9,10 +9,32 @@ My buddy George had Claude create this plan to add a status line to the CLI.
 
 ## Setup
 
-To have Claude execute the status line plan, open Claude Code in this repo and ask it to implement the `statusline.md` file:
+There are two ways to set this up:
+
+### Option 1 — Copy the script (quick)
+
+Copy the pre-built script to your `.claude` folder and register it in your settings:
+
+```bash
+cp statusline-command.sh ~/.claude/statusline-command.sh
+```
+
+Then add the following to `~/.claude/settings.json` (create it if it doesn't exist):
+
+```json
+{
+  "statusLine": {
+    "command": "bash ~/.claude/statusline-command.sh"
+  }
+}
+```
+
+### Option 2 — Let Claude implement it
+
+Open Claude Code in this repo and ask it to implement the plan:
 
 ```
-claude "Implement the plan in statusline.md"
+claude "Implement the plan in plan/statusline.md"
 ```
 
 This will create (or update) `~/.claude/statusline-command.sh` and configure `~/.claude/settings.json` to point to it.
@@ -39,7 +61,7 @@ The status line displays the following segments at the bottom of the Claude CLI:
 
 ### Verifying it works
 
-After implementation, test with mock JSON:
+After setup, test with mock JSON:
 
 ```bash
 echo '{"model":{"display_name":"Opus"},"context_window":{"used_percentage":42},"cost":{"total_cost_usd":1.23,"total_duration_ms":754000,"total_lines_added":50,"total_lines_removed":12},"output_style":{"name":"concise"},"workspace":{"current_dir":"'"$(pwd)"'"}}' | bash ~/.claude/statusline-command.sh
