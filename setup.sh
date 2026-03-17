@@ -20,12 +20,12 @@ echo "Copied statusline-command.sh to $DEST"
 
 # Merge statusLine into settings.json
 if [ -f "$SETTINGS" ]; then
-  jq '. + {"statusLine": {"command": "'"$STATUS_LINE_COMMAND"'"}}' \
+  jq '.statusLine = ((.statusLine // {}) + {"type": "command", "command": "'"$STATUS_LINE_COMMAND"'"})' \
     "$SETTINGS" > /tmp/claude-settings-tmp.json \
     && mv /tmp/claude-settings-tmp.json "$SETTINGS"
   echo "Updated $SETTINGS"
 else
-  printf '{\n  "statusLine": {\n    "command": "%s"\n  }\n}\n' "$STATUS_LINE_COMMAND" > "$SETTINGS"
+  printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s"\n  }\n}\n' "$STATUS_LINE_COMMAND" > "$SETTINGS"
   echo "Created $SETTINGS"
 fi
 

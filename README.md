@@ -37,6 +37,7 @@ Then add the following to `~/.claude/settings.json` (create it if it doesn't exi
 ```json
 {
   "statusLine": {
+    "type": "command",
     "command": "bash ~/.claude/statusline-command.sh"
   }
 }
