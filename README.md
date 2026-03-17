@@ -9,9 +9,22 @@ My buddy George had Claude create this plan to add a status line to the CLI.
 
 ## Setup
 
-There are two ways to set this up:
+### Prerequisites
 
-### Option 1 — Copy the script (quick)
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
+- `bash` and `jq` available on your system (`brew install jq`)
+
+There are three ways to set this up:
+
+### Option 1 — Setup script (recommended)
+
+```bash
+bash setup.sh
+```
+
+This copies the script to `~/.claude/` and merges the `statusLine` config into `~/.claude/settings.json`, preserving any existing settings.
+
+### Option 2 — Manual
 
 Copy the pre-built script to your `.claude` folder and register it in your settings:
 
@@ -29,7 +42,7 @@ Then add the following to `~/.claude/settings.json` (create it if it doesn't exi
 }
 ```
 
-### Option 2 — Let Claude implement it
+### Option 3 — Let Claude implement it
 
 Open Claude Code in this repo and ask it to implement the plan:
 
@@ -38,11 +51,6 @@ claude "Implement the plan in plan/statusline.md"
 ```
 
 This will create (or update) `~/.claude/statusline-command.sh` and configure `~/.claude/settings.json` to point to it.
-
-### Prerequisites
-
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
-- `bash` and `jq` available on your system
 
 ### What it does
 
