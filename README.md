@@ -19,7 +19,7 @@ There are three ways to set this up:
 ### Option 1 — Setup script (recommended)
 
 ```bash
-bash setup.sh
+./setup.sh
 ```
 
 This copies the script to `~/.claude/` and merges the `statusLine` config into `~/.claude/settings.json`, preserving any existing settings.
