@@ -17,7 +17,7 @@ fi
 CLAUDE_DIR="$HOME/.claude"
 DEST="$CLAUDE_DIR/statusline-command.sh"
 SETTINGS="$CLAUDE_DIR/settings.json"
-STATUS_LINE_COMMAND="bash $HOME/.claude/statusline-command.sh"
+STATUS_LINE_COMMAND="bash \"$HOME/.claude/statusline-command.sh\""
 TMP_SETTINGS="/tmp/claude-settings-tmp.json"
 
 trap 'rm -f "$TMP_SETTINGS"' EXIT

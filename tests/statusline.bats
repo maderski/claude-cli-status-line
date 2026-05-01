@@ -296,6 +296,13 @@ _json() {
   [[ "$(_strip)" == *"-3"* ]]
 }
 
+@test "lines: numeric strings are accepted and truncated to integers" {
+  _run "$(_json '"cost":{"total_lines_added":"10.9","total_lines_removed":"3.2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"+10"* ]]
+  [[ "$(_strip)" == *"-3"* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Git branch — caching
 # ═══════════════════════════════════════════════════════════════════════════════
