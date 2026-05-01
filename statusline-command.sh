@@ -34,8 +34,8 @@ pct_int=${pct_int:-0}
 filled=$(( pct_int / 10 ))
 empty=$(( 10 - filled ))
 bar=""
-for i in $(seq 1 $filled); do bar="${bar}█"; done
-for i in $(seq 1 $empty);  do bar="${bar}░"; done
+for (( i = 0; i < filled; i++ )); do bar="${bar}█"; done
+for (( i = 0; i < empty;  i++ )); do bar="${bar}░"; done
 
 if   [ "$pct_int" -ge 80 ]; then color='\033[0;31m'
 elif [ "$pct_int" -ge 50 ]; then color='\033[0;33m'
