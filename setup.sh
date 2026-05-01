@@ -7,22 +7,26 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE_DIR="$HOME/.claude"
 DEST="$CLAUDE_DIR/statusline-command.sh"
 SETTINGS="$CLAUDE_DIR/settings.json"
-STATUS_LINE_COMMAND="bash ~/.claude/statusline-command.sh"
+STATUS_LINE_COMMAND="bash $HOME/.claude/statusline-command.sh"
+TMP_SETTINGS="/tmp/claude-settings-tmp.json"
+
+trap 'rm -f "$TMP_SETTINGS"' EXIT
 
 # Copy script
 mkdir -p "$CLAUDE_DIR"
-cp "$(dirname "$0")/statusline-command.sh" "$DEST"
+cp "$SCRIPT_DIR/statusline-command.sh" "$DEST"
 chmod +x "$DEST"
 echo "Copied statusline-command.sh to $DEST"
 
 # Merge statusLine into settings.json
 if [ -f "$SETTINGS" ]; then
   jq '.statusLine = ((.statusLine // {}) + {"type": "command", "command": "'"$STATUS_LINE_COMMAND"'"})' \
-    "$SETTINGS" > /tmp/claude-settings-tmp.json \
-    && mv /tmp/claude-settings-tmp.json "$SETTINGS"
+    "$SETTINGS" > "$TMP_SETTINGS" \
+    && mv "$TMP_SETTINGS" "$SETTINGS"
   echo "Updated $SETTINGS"
 else
   printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s"\n  }\n}\n' "$STATUS_LINE_COMMAND" > "$SETTINGS"
