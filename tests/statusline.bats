@@ -6,6 +6,7 @@ setup() {
   TEST_HOME="$(mktemp -d)"
   export HOME="$TEST_HOME"
   mkdir -p "$HOME/.claude"
+  unset TMPDIR
 
   MOCK_BIN="$(mktemp -d)"
   export PATH="$MOCK_BIN:$PATH"
@@ -139,6 +140,24 @@ _json() {
   _run '{}'
   [ "$status" -eq 0 ]
   [[ "$(_strip)" == *"0%"* ]]
+}
+
+@test "context: negative percentage is clamped to 0%" {
+  _run "$(_json '"context_window":{"used_percentage":-5}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"[░░░░░░░░░░] 0%"* ]]
+}
+
+@test "context: percentage above 100 is clamped to 100%" {
+  _run "$(_json '"context_window":{"used_percentage":150}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"[██████████] 100%"* ]]
+}
+
+@test "context: non-numeric percentage falls back to 0%" {
+  _run "$(_json '"context_window":{"used_percentage":"abc"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"[░░░░░░░░░░] 0%"* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -313,6 +332,16 @@ _json() {
   _mock_git "feature/my-feature"
   _run "$(_json)"
   [[ "$(_strip)" == *"feature/my-feature"* ]]
+}
+
+@test "git: cache file is written under TMPDIR when provided" {
+  export TMPDIR="$TEST_HOME/custom-tmpdir"
+  mkdir -p "$TMPDIR"
+  expected_cache_file="${TMPDIR%/}/claude-statusline-git-${CACHE_KEY}"
+
+  _run "$(_json)"
+  [ "$status" -eq 0 ]
+  [ -f "$expected_cache_file" ]
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -31,6 +31,14 @@ input=$(cat)
 # --- Context window ---
 pct_int=${pct%.*}
 pct_int=${pct_int:-0}
+if ! [[ "$pct_int" =~ ^-?[0-9]+$ ]]; then
+  pct_int=0
+fi
+if [ "$pct_int" -lt 0 ]; then
+  pct_int=0
+elif [ "$pct_int" -gt 100 ]; then
+  pct_int=100
+fi
 filled=$(( pct_int / 10 ))
 empty=$(( 10 - filled ))
 bar=""
@@ -101,7 +109,8 @@ fi
 
 # --- Git branch (cached 5s per workspace) ---
 cache_key=$(printf '%s' "$current_dir" | cksum | awk '{print $1}')
-cache_file="/tmp/claude-statusline-git-${cache_key}"
+cache_dir="${TMPDIR:-/tmp}"
+cache_file="${cache_dir%/}/claude-statusline-git-${cache_key}"
 cache_age=999
 
 if [ -f "$cache_file" ]; then
