@@ -109,19 +109,35 @@ else
 fi
 
 # --- Git branch (cached 5s per workspace) ---
+current_uid=$(id -u 2>/dev/null || echo "unknown")
 cache_key=$(printf '%s' "$current_dir" | cksum | awk '{print $1}')
 cache_dir="${TMPDIR:-/tmp}"
-cache_file="${cache_dir%/}/claude-statusline-git-${cache_key}"
+cache_file="${cache_dir%/}/claude-statusline-git-${current_uid}-${cache_key}"
 cache_age=999
+cache_trusted=0
 
 if [ -f "$cache_file" ]; then
+  file_uid=$(stat -c %u "$cache_file" 2>/dev/null || stat -f %u "$cache_file" 2>/dev/null || echo "")
+  file_mode=$(stat -c %a "$cache_file" 2>/dev/null || stat -f %Lp "$cache_file" 2>/dev/null || echo "")
+  if [ "$file_uid" = "$current_uid" ] && [[ "$file_mode" =~ ^[0-7]{3,4}$ ]]; then
+    mode_dec=$(( 8#$file_mode ))
+    if (( (mode_dec & 18) == 0 )); then
+      cache_trusted=1
+    fi
+  fi
+fi
+
+if [ "$cache_trusted" -eq 1 ]; then
   mtime=$(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null || echo 0)
   cache_age=$(( $(date +%s) - mtime ))
 fi
 
 if [ "$cache_age" -ge 5 ]; then
   branch=$(git -C "$current_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-  echo "$branch" > "$cache_file"
+  old_umask=$(umask)
+  umask 077
+  printf '%s\n' "$branch" > "$cache_file"
+  umask "$old_umask"
 else
   branch=$(cat "$cache_file")
 fi

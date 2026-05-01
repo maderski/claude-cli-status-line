@@ -13,8 +13,9 @@ setup() {
 
   # Fixed workspace dir so cache key is deterministic across tests
   TEST_DIR="/tmp/bats-test-workspace"
+  TEST_UID="$(id -u)"
   CACHE_KEY=$(printf '%s' "$TEST_DIR" | cksum | awk '{print $1}')
-  CACHE_FILE="/tmp/claude-statusline-git-${CACHE_KEY}"
+  CACHE_FILE="/tmp/claude-statusline-git-${TEST_UID}-${CACHE_KEY}"
   GIT_LOG="$TEST_HOME/git-calls.log"
 
   rm -f "$CACHE_FILE" "$GIT_LOG"
@@ -316,11 +317,23 @@ _json() {
 
 @test "git: reads from cache and skips git call when cache is fresh" {
   echo "cached-branch" > "$CACHE_FILE"
+  chmod 600 "$CACHE_FILE"
   # mtime is now → age 0, well under the 5-second threshold
   _run "$(_json)"
   [ "$status" -eq 0 ]
   [[ "$(_strip)" == *"cached-branch"* ]]
   [ ! -f "$GIT_LOG" ]
+}
+
+@test "git: ignores cache when file is group/world writable" {
+  echo "poisoned-branch" > "$CACHE_FILE"
+  chmod 666 "$CACHE_FILE"
+  _mock_git "trusted-branch"
+
+  _run "$(_json)"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"trusted-branch"* ]]
+  [ -f "$GIT_LOG" ]
 }
 
 @test "git: calls git again when cache is stale" {
@@ -351,7 +364,7 @@ _json() {
 @test "git: cache file is written under TMPDIR when provided" {
   export TMPDIR="$TEST_HOME/custom-tmpdir"
   mkdir -p "$TMPDIR"
-  expected_cache_file="${TMPDIR%/}/claude-statusline-git-${CACHE_KEY}"
+  expected_cache_file="${TMPDIR%/}/claude-statusline-git-${TEST_UID}-${CACHE_KEY}"
 
   _run "$(_json)"
   [ "$status" -eq 0 ]
