@@ -52,16 +52,17 @@ fi
 ctx_str=$(printf '%b[%s] %s%%%b' "$color" "$bar" "$pct_int" '\033[0m')
 
 # --- Model ---
-settings_model=$(jq -r '.model // empty' ~/.claude/settings.json 2>/dev/null)
-if [ -n "$settings_model" ]; then
+# Prefer live payload (updates every prompt); fall back to settings.json
+if [ -n "$model_payload" ]; then
+  model="$model_payload"
+else
+  settings_model=$(jq -r '.model // empty' ~/.claude/settings.json 2>/dev/null)
   case "$settings_model" in
     *opus*)   model="Opus" ;;
     *sonnet*) model="Sonnet" ;;
     *haiku*)  model="Haiku" ;;
     *)        model="$settings_model" ;;
   esac
-else
-  model="$model_payload"
 fi
 if [ -n "$model" ]; then
   model_str=$(printf '%b%s%b' '\033[0;36m' "$model" '\033[0m')

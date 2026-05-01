@@ -188,9 +188,16 @@ _json() {
   [[ "$(_strip)" == *"custom-model-xyz"* ]]
 }
 
-@test "model: falls back to payload display_name when settings.json absent" {
+@test "model: uses payload display_name when present" {
   _run "$(_json '"model":{"display_name":"Opus"}')"
   [[ "$(_strip)" == *"Opus"* ]]
+}
+
+@test "model: payload display_name takes precedence over settings.json" {
+  echo '{"model":"claude-sonnet-4-6"}' > "$HOME/.claude/settings.json"
+  _run "$(_json '"model":{"display_name":"Haiku"}')"
+  [[ "$(_strip)" == *"Haiku"* ]]
+  [[ "$(_strip)" != *"Sonnet"* ]]
 }
 
 @test "model: hidden when neither settings.json nor payload provides it" {
