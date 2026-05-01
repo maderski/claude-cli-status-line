@@ -30,7 +30,8 @@ echo "Copied statusline-command.sh to $DEST"
 
 # Merge statusLine into settings.json
 if [ -f "$SETTINGS" ]; then
-  jq '.statusLine = ((.statusLine // {}) + {"type": "command", "command": "'"$STATUS_LINE_COMMAND"'"})' \
+  jq --arg status_line_command "$STATUS_LINE_COMMAND" \
+    '.statusLine = ((.statusLine // {}) + {"type": "command", "command": $status_line_command})' \
     "$SETTINGS" > "$TMP_SETTINGS" \
     && mv "$TMP_SETTINGS" "$SETTINGS"
   echo "Updated $SETTINGS"
