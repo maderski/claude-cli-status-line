@@ -8,6 +8,12 @@ if ! command -v jq &>/dev/null; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Pull latest if this is a git repo (makes re-running setup.sh act as an update)
+if git -C "$SCRIPT_DIR" rev-parse --git-dir &>/dev/null; then
+  echo "Pulling latest changes..."
+  git -C "$SCRIPT_DIR" pull --ff-only || echo "Warning: git pull failed, continuing with local version"
+fi
 CLAUDE_DIR="$HOME/.claude"
 DEST="$CLAUDE_DIR/statusline-command.sh"
 SETTINGS="$CLAUDE_DIR/settings.json"

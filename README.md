@@ -24,6 +24,12 @@ There are three ways to set this up:
 
 This copies the script to `~/.claude/` and merges the `statusLine` config into `~/.claude/settings.json`, preserving any existing settings.
 
+**To update**, just run the same command again — it pulls the latest from git and re-installs:
+
+```bash
+./setup.sh
+```
+
 ### Option 2 — Manual
 
 Copy the pre-built script to your `.claude` folder and register it in your settings:
@@ -38,7 +44,7 @@ Then add the following to `~/.claude/settings.json` (create it if it doesn't exi
 {
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/statusline-command.sh"
+    "command": "bash /Users/YOUR_USERNAME/.claude/statusline-command.sh"
   }
 }
 ```
