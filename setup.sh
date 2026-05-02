@@ -36,7 +36,8 @@ if [ -f "$SETTINGS" ]; then
     && mv "$TMP_SETTINGS" "$SETTINGS"
   echo "Updated $SETTINGS"
 else
-  printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s"\n  }\n}\n' "$STATUS_LINE_COMMAND" > "$SETTINGS"
+  jq -n --arg status_line_command "$STATUS_LINE_COMMAND" \
+    '{statusLine: {type: "command", command: $status_line_command}}' > "$SETTINGS"
   echo "Created $SETTINGS"
 fi
 
