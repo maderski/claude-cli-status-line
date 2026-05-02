@@ -7,25 +7,37 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Pull latest if this is a git repo (makes re-running setup.sh act as an update)
+if git -C "$SCRIPT_DIR" rev-parse --git-dir &>/dev/null; then
+  echo "Pulling latest changes..."
+  git -C "$SCRIPT_DIR" pull --ff-only || echo "Warning: git pull failed, continuing with local version"
+fi
 CLAUDE_DIR="$HOME/.claude"
 DEST="$CLAUDE_DIR/statusline-command.sh"
 SETTINGS="$CLAUDE_DIR/settings.json"
-STATUS_LINE_COMMAND="bash ~/.claude/statusline-command.sh"
+STATUS_LINE_COMMAND="bash \"$HOME/.claude/statusline-command.sh\""
+TMP_SETTINGS="/tmp/claude-settings-tmp.json"
+
+trap 'rm -f "$TMP_SETTINGS"' EXIT
 
 # Copy script
 mkdir -p "$CLAUDE_DIR"
-cp "$(dirname "$0")/statusline-command.sh" "$DEST"
+cp "$SCRIPT_DIR/statusline-command.sh" "$DEST"
 chmod +x "$DEST"
 echo "Copied statusline-command.sh to $DEST"
 
 # Merge statusLine into settings.json
 if [ -f "$SETTINGS" ]; then
-  jq '.statusLine = ((.statusLine // {}) + {"type": "command", "command": "'"$STATUS_LINE_COMMAND"'"})' \
-    "$SETTINGS" > /tmp/claude-settings-tmp.json \
-    && mv /tmp/claude-settings-tmp.json "$SETTINGS"
+  jq --arg status_line_command "$STATUS_LINE_COMMAND" \
+    '.statusLine = ((.statusLine // {}) + {"type": "command", "command": $status_line_command})' \
+    "$SETTINGS" > "$TMP_SETTINGS" \
+    && mv "$TMP_SETTINGS" "$SETTINGS"
   echo "Updated $SETTINGS"
 else
-  printf '{\n  "statusLine": {\n    "type": "command",\n    "command": "%s"\n  }\n}\n' "$STATUS_LINE_COMMAND" > "$SETTINGS"
+  jq -n --arg status_line_command "$STATUS_LINE_COMMAND" \
+    '{statusLine: {type: "command", command: $status_line_command}}' > "$SETTINGS"
   echo "Created $SETTINGS"
 fi
 

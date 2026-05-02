@@ -3,14 +3,47 @@
 
 input=$(cat)
 
+# Parse all fields in a single jq invocation
+{
+  read -r pct
+  read -r effort
+  read -r cost
+  read -r duration_ms
+  read -r added
+  read -r removed
+  read -r current_dir
+  read -r agent
+  read -r worktree
+  read -r model_payload
+} < <(echo "$input" | jq -r '
+  (.context_window.used_percentage // 0),
+  (.output_style.name // ""),
+  (if (.cost.total_cost_usd // 0) > 0 then (.cost.total_cost_usd | tostring) else "" end),
+  (.cost.total_duration_ms // ""),
+  ((.cost.total_lines_added // 0) | tonumber? // 0 | floor),
+  ((.cost.total_lines_removed // 0) | tonumber? // 0 | floor),
+  (.workspace.current_dir // "."),
+  (.agent.name // ""),
+  (.worktree.name // ""),
+  (.model.display_name // "")
+')
+
 # --- Context window ---
-pct=$(echo "$input" | jq -r '.context_window.used_percentage // 0')
 pct_int=${pct%.*}
+pct_int=${pct_int:-0}
+if ! [[ "$pct_int" =~ ^-?[0-9]+$ ]]; then
+  pct_int=0
+fi
+if [ "$pct_int" -lt 0 ]; then
+  pct_int=0
+elif [ "$pct_int" -gt 100 ]; then
+  pct_int=100
+fi
 filled=$(( pct_int / 10 ))
 empty=$(( 10 - filled ))
 bar=""
-for i in $(seq 1 $filled); do bar="${bar}█"; done
-for i in $(seq 1 $empty);  do bar="${bar}░"; done
+for (( i = 0; i < filled; i++ )); do bar="${bar}█"; done
+for (( i = 0; i < empty;  i++ )); do bar="${bar}░"; done
 
 if   [ "$pct_int" -ge 80 ]; then color='\033[0;31m'
 elif [ "$pct_int" -ge 50 ]; then color='\033[0;33m'
@@ -19,18 +52,17 @@ fi
 ctx_str=$(printf '%b[%s] %s%%%b' "$color" "$bar" "$pct_int" '\033[0m')
 
 # --- Model ---
-# Prefer settings.json (updated by model-advisor hook before each request)
-# over payload's display_name (reflects previous response's model)
-settings_model=$(jq -r '.model // empty' ~/.claude/settings.json 2>/dev/null)
-if [ -n "$settings_model" ]; then
+# Prefer live payload (updates every prompt); fall back to settings.json
+if [ -n "$model_payload" ]; then
+  model="$model_payload"
+else
+  settings_model=$(jq -r '.model // empty' ~/.claude/settings.json 2>/dev/null)
   case "$settings_model" in
     *opus*)   model="Opus" ;;
     *sonnet*) model="Sonnet" ;;
     *haiku*)  model="Haiku" ;;
     *)        model="$settings_model" ;;
   esac
-else
-  model=$(echo "$input" | jq -r '.model.display_name // empty')
 fi
 if [ -n "$model" ]; then
   model_str=$(printf '%b%s%b' '\033[0;36m' "$model" '\033[0m')
@@ -39,7 +71,6 @@ else
 fi
 
 # --- Effort ---
-effort=$(echo "$input" | jq -r '.output_style.name // empty')
 if [ -n "$effort" ]; then
   effort_str=$(printf '%b%s%b' '\033[0;35m' "$effort" '\033[0m')
 else
@@ -47,7 +78,6 @@ else
 fi
 
 # --- Cost ---
-cost=$(echo "$input" | jq -r '.cost.total_cost_usd // empty')
 if [ -n "$cost" ]; then
   cost_str=$(printf '%b$%s%b' '\033[0;33m' "$(printf '%.2f' "$cost")" '\033[0m')
 else
@@ -55,12 +85,14 @@ else
 fi
 
 # --- Duration ---
-duration_ms=$(echo "$input" | jq -r '.cost.total_duration_ms // empty')
 if [ -n "$duration_ms" ]; then
   total_sec=$(( duration_ms / 1000 ))
-  mins=$(( total_sec / 60 ))
+  hours=$(( total_sec / 3600 ))
+  mins=$(( (total_sec % 3600) / 60 ))
   secs=$(( total_sec % 60 ))
-  if [ "$mins" -gt 0 ]; then
+  if [ "$hours" -gt 0 ]; then
+    dur_str=$(printf '%b%dh%dm%ds%b' '\033[2m' "$hours" "$mins" "$secs" '\033[0m')
+  elif [ "$mins" -gt 0 ]; then
     dur_str=$(printf '%b%dm%ds%b' '\033[2m' "$mins" "$secs" '\033[0m')
   else
     dur_str=$(printf '%b%ds%b' '\033[2m' "$secs" '\033[0m')
@@ -70,24 +102,57 @@ else
 fi
 
 # --- Lines changed ---
-added=$(echo "$input" | jq -r '.cost.total_lines_added // 0')
-removed=$(echo "$input" | jq -r '.cost.total_lines_removed // 0')
 if [ "$added" -gt 0 ] || [ "$removed" -gt 0 ]; then
   lines_str=$(printf '%b+%s%b %b-%s%b' '\033[0;32m' "$added" '\033[0m' '\033[0;31m' "$removed" '\033[0m')
 else
   lines_str=""
 fi
 
-# --- Git branch (cached 5s) ---
-cache_file="/tmp/claude-statusline-git-$$"
+# --- Git branch (cached 5s per workspace) ---
+current_uid=$(id -u 2>/dev/null || echo "unknown")
+cache_key=$(printf '%s' "$current_dir" | cksum | awk '{print $1}')
+cache_dir="${TMPDIR:-/tmp}"
+cache_file="${cache_dir%/}/claude-statusline-git-${current_uid}-${cache_key}"
 cache_age=999
-if [ -f "$cache_file" ]; then
-  cache_age=$(( $(date +%s) - $(stat -f %m "$cache_file" 2>/dev/null || echo 0) ))
+cache_trusted=0
+cache_writable=1
+
+if [ -L "$cache_file" ]; then
+  cache_writable=0
+fi
+
+if [ -f "$cache_file" ] && [ "$cache_writable" -eq 1 ]; then
+  file_uid=$(stat -c %u "$cache_file" 2>/dev/null || stat -f %u "$cache_file" 2>/dev/null || echo "")
+  file_mode=$(stat -c %a "$cache_file" 2>/dev/null || stat -f %Lp "$cache_file" 2>/dev/null || echo "")
+  if [ "$file_uid" = "$current_uid" ] && [[ "$file_mode" =~ ^[0-7]{3,4}$ ]]; then
+    mode_dec=$(( 8#$file_mode ))
+    if (( (mode_dec & 18) == 0 )); then
+      cache_trusted=1
+    fi
+  fi
+fi
+
+if [ "$cache_trusted" -eq 1 ]; then
+  mtime=$(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null || echo 0)
+  cache_age=$(( $(date +%s) - mtime ))
 fi
 
 if [ "$cache_age" -ge 5 ]; then
-  branch=$(git -C "$(echo "$input" | jq -r '.workspace.current_dir // "."')" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-  echo "$branch" > "$cache_file"
+  branch=$(git -C "$current_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+  # Never write directly to the cache path. A symlink at cache_file would
+  # otherwise clobber its target via shell redirection.
+  if [ "$cache_writable" -eq 1 ]; then
+    cache_tmp="${cache_file}.tmp.$$"
+    old_umask=$(umask)
+    umask 077
+    if printf '%s\n' "$branch" > "$cache_tmp"; then
+      mv -f "$cache_tmp" "$cache_file" 2>/dev/null || rm -f "$cache_tmp"
+    else
+      rm -f "$cache_tmp"
+    fi
+    umask "$old_umask"
+  fi
 else
   branch=$(cat "$cache_file")
 fi
@@ -99,8 +164,6 @@ else
 fi
 
 # --- Agent / worktree ---
-agent=$(echo "$input" | jq -r '.agent.name // empty')
-worktree=$(echo "$input" | jq -r '.worktree.name // empty')
 if [ -n "$agent" ]; then
   agent_str=$(printf '%b[%s]%b' '\033[0;35m' "$agent" '\033[0m')
 elif [ -n "$worktree" ]; then

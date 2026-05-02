@@ -24,6 +24,12 @@ There are three ways to set this up:
 
 This copies the script to `~/.claude/` and merges the `statusLine` config into `~/.claude/settings.json`, preserving any existing settings.
 
+**To update**, just run the same command again — it pulls the latest from git and re-installs:
+
+```bash
+./setup.sh
+```
+
 ### Option 2 — Manual
 
 Copy the pre-built script to your `.claude` folder and register it in your settings:
@@ -38,7 +44,7 @@ Then add the following to `~/.claude/settings.json` (create it if it doesn't exi
 {
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/statusline-command.sh"
+    "command": "bash /Users/YOUR_USERNAME/.claude/statusline-command.sh"
   }
 }
 ```
@@ -75,3 +81,20 @@ After setup, test with mock JSON:
 ```bash
 echo '{"model":{"display_name":"Opus"},"context_window":{"used_percentage":42},"cost":{"total_cost_usd":1.23,"total_duration_ms":754000,"total_lines_added":50,"total_lines_removed":12},"output_style":{"name":"concise"},"workspace":{"current_dir":"'"$(pwd)"'"}}' | bash ~/.claude/statusline-command.sh
 ```
+
+## Testing
+
+Install [bats-core](https://github.com/bats-core/bats-core), then run the suite:
+
+```bash
+brew install bats-core
+make test
+```
+
+Or run bats directly:
+
+```bash
+bats tests/statusline.bats
+```
+
+The suite covers all branches of `statusline-command.sh`: context bar rendering, color thresholds, model name resolution, cost/duration/lines formatting, git branch caching, agent/worktree display, and output assembly.
