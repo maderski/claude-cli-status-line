@@ -371,6 +371,19 @@ _json() {
   [ -f "$expected_cache_file" ]
 }
 
+@test "git: cache write does not clobber symlink target" {
+  target_file="$TEST_HOME/symlink-target"
+  echo "DO-NOT-OVERWRITE" > "$target_file"
+  ln -s "$target_file" "$CACHE_FILE"
+  _mock_git "safe-branch"
+
+  _run "$(_json)"
+  [ "$status" -eq 0 ]
+  [ -L "$CACHE_FILE" ]
+  [[ "$(_strip)" == *"safe-branch"* ]]
+  [[ "$(cat "$target_file")" == "DO-NOT-OVERWRITE" ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Agent / worktree
 # ═══════════════════════════════════════════════════════════════════════════════

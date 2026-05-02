@@ -115,8 +115,13 @@ cache_dir="${TMPDIR:-/tmp}"
 cache_file="${cache_dir%/}/claude-statusline-git-${current_uid}-${cache_key}"
 cache_age=999
 cache_trusted=0
+cache_writable=1
 
-if [ -f "$cache_file" ]; then
+if [ -L "$cache_file" ]; then
+  cache_writable=0
+fi
+
+if [ -f "$cache_file" ] && [ "$cache_writable" -eq 1 ]; then
   file_uid=$(stat -c %u "$cache_file" 2>/dev/null || stat -f %u "$cache_file" 2>/dev/null || echo "")
   file_mode=$(stat -c %a "$cache_file" 2>/dev/null || stat -f %Lp "$cache_file" 2>/dev/null || echo "")
   if [ "$file_uid" = "$current_uid" ] && [[ "$file_mode" =~ ^[0-7]{3,4}$ ]]; then
@@ -134,10 +139,20 @@ fi
 
 if [ "$cache_age" -ge 5 ]; then
   branch=$(git -C "$current_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-  old_umask=$(umask)
-  umask 077
-  printf '%s\n' "$branch" > "$cache_file"
-  umask "$old_umask"
+
+  # Never write directly to the cache path. A symlink at cache_file would
+  # otherwise clobber its target via shell redirection.
+  if [ "$cache_writable" -eq 1 ]; then
+    cache_tmp="${cache_file}.tmp.$$"
+    old_umask=$(umask)
+    umask 077
+    if printf '%s\n' "$branch" > "$cache_tmp"; then
+      mv -f "$cache_tmp" "$cache_file" 2>/dev/null || rm -f "$cache_tmp"
+    else
+      rm -f "$cache_tmp"
+    fi
+    umask "$old_umask"
+  fi
 else
   branch=$(cat "$cache_file")
 fi
