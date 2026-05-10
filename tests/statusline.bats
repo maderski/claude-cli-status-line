@@ -245,6 +245,43 @@ _json() {
   [[ "$(_strip)" != *'$'* ]]
 }
 
+# Simulate jq outputting a comma decimal separator (European locale behavior).
+# The mock outputs all 10 fields the script reads, with cost as a comma-formatted
+# string. The settings.json jq call is detected by argument and returns empty.
+_mock_jq_comma_cost() {
+  local comma_cost="$1"
+  cat > "$MOCK_BIN/jq" <<MOCK
+#!/usr/bin/env bash
+if [[ "\$*" == *"settings.json"* ]]; then
+  echo ""
+  exit 0
+fi
+printf '0\n\n${comma_cost}\n\n0\n0\n${TEST_DIR}\n\n\n\n'
+MOCK
+  chmod +x "$MOCK_BIN/jq"
+}
+
+@test "cost: comma decimal separator is normalized and displayed with period" {
+  _mock_jq_comma_cost "1,50"
+  _run "$(_json)"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1.50'* ]]
+}
+
+@test "cost: small amount with comma decimal separator is normalized correctly" {
+  _mock_jq_comma_cost "0,10"
+  _run "$(_json)"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.10'* ]]
+}
+
+@test "cost: large amount with comma decimal separator is normalized correctly" {
+  _mock_jq_comma_cost "12,34"
+  _run "$(_json)"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$12.34'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════
