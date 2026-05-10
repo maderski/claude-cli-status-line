@@ -79,6 +79,7 @@ fi
 
 # --- Cost ---
 if [ -n "$cost" ]; then
+  cost="${cost//,/.}"
   cost_str=$(printf '%b$%s%b' '\033[0;33m' "$(printf '%.2f' "$cost")" '\033[0m')
 else
   cost_str=""
