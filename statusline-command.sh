@@ -57,7 +57,11 @@ normalize_cost() {
       normalized="${normalized//,/}"
     fi
   elif [ "$comma_suffix" != "$normalized" ]; then
-    normalized="${normalized//,/.}"
+    if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]]; then
+      normalized="${normalized//,/}"
+    else
+      normalized="${normalized//,/.}"
+    fi
   fi
 
   normalized="${normalized}${exponent}"

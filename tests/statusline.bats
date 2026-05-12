@@ -294,6 +294,18 @@ MOCK
   [[ "$(_strip)" == *'$1.23'* ]]
 }
 
+@test "cost: comma-grouped thousands without decimal separator are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.00'* ]]
+}
+
+@test "cost: multiple comma-grouped thousands without decimal separator are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"12,345,678"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$12345678.00'* ]]
+}
+
 @test "cost: localized zero value with currency symbol stays hidden" {
   _run "$(_json '"cost":{"total_cost_usd":"€0,00"}')"
   [ "$status" -eq 0 ]
