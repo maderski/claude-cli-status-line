@@ -312,6 +312,18 @@ MOCK
   [[ "$(_strip)" == *'$1234.56'* ]]
 }
 
+@test "cost: scientific notation preserves negative exponent values" {
+  _run "$(_json '"cost":{"total_cost_usd":"1E-7"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.00'* ]]
+}
+
+@test "cost: scientific notation preserves positive exponent values" {
+  _run "$(_json '"cost":{"total_cost_usd":"1E+21"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1000000000000000000000.00'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -30,11 +30,18 @@ input=$(cat)
 
 normalize_cost() {
   local raw="$1"
+  local mantissa="$raw"
+  local exponent=""
   local normalized
   local comma_suffix
   local dot_suffix
 
-  normalized=$(printf '%s' "$raw" | tr -cd '0-9,.-')
+  if [[ "$raw" =~ ^(.*)([eE][+-]?[0-9]+)$ ]]; then
+    mantissa="${BASH_REMATCH[1]}"
+    exponent="${BASH_REMATCH[2]}"
+  fi
+
+  normalized=$(printf '%s' "$mantissa" | tr -cd '0-9,.-')
   if [ -z "$normalized" ] || [ "$normalized" = "-" ]; then
     return 1
   fi
@@ -52,6 +59,8 @@ normalize_cost() {
   elif [ "$comma_suffix" != "$normalized" ]; then
     normalized="${normalized//,/.}"
   fi
+
+  normalized="${normalized}${exponent}"
 
   if ! awk -v value="$normalized" 'BEGIN { exit !(value + 0 > 0) }'; then
     return 1
