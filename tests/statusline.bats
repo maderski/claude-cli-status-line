@@ -282,6 +282,36 @@ MOCK
   [[ "$(_strip)" == *'$12.34'* ]]
 }
 
+@test "cost: comma decimal string with dollar sign is normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"$0,01"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.01'* ]]
+}
+
+@test "cost: comma decimal string with currency symbol increments past zero" {
+  _run "$(_json '"cost":{"total_cost_usd":"$1,23"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1.23'* ]]
+}
+
+@test "cost: localized zero value with currency symbol stays hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"€0,00"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: European thousands and decimal separators are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"€1.234,56"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.56'* ]]
+}
+
+@test "cost: US thousands and decimal separators are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"$1,234.56"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.56'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════

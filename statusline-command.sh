@@ -18,7 +18,7 @@ input=$(cat)
 } < <(echo "$input" | jq -r '
   (.context_window.used_percentage // 0),
   (.output_style.name // ""),
-  (if (.cost.total_cost_usd // 0) > 0 then (.cost.total_cost_usd | tostring) else "" end),
+  (if .cost.total_cost_usd? != null then (.cost.total_cost_usd | tostring) else "" end),
   (.cost.total_duration_ms // ""),
   ((.cost.total_lines_added // 0) | tonumber? // 0 | floor),
   ((.cost.total_lines_removed // 0) | tonumber? // 0 | floor),
@@ -27,6 +27,38 @@ input=$(cat)
   (.worktree.name // ""),
   (.model.display_name // "")
 ')
+
+normalize_cost() {
+  local raw="$1"
+  local normalized
+  local comma_suffix
+  local dot_suffix
+
+  normalized=$(printf '%s' "$raw" | tr -cd '0-9,.-')
+  if [ -z "$normalized" ] || [ "$normalized" = "-" ]; then
+    return 1
+  fi
+
+  comma_suffix="${normalized##*,}"
+  dot_suffix="${normalized##*.}"
+
+  if [ "$comma_suffix" != "$normalized" ] && [ "$dot_suffix" != "$normalized" ]; then
+    if [ "${#comma_suffix}" -lt "${#dot_suffix}" ]; then
+      normalized="${normalized//./}"
+      normalized="${normalized//,/.}"
+    else
+      normalized="${normalized//,/}"
+    fi
+  elif [ "$comma_suffix" != "$normalized" ]; then
+    normalized="${normalized//,/.}"
+  fi
+
+  if ! awk -v value="$normalized" 'BEGIN { exit !(value + 0 > 0) }'; then
+    return 1
+  fi
+
+  printf '%s' "$normalized"
+}
 
 # --- Context window ---
 pct_int=${pct%.*}
@@ -79,8 +111,11 @@ fi
 
 # --- Cost ---
 if [ -n "$cost" ]; then
-  cost="${cost//,/.}"
-  cost_str=$(printf '%b$%s%b' '\033[0;33m' "$(printf '%.2f' "$cost")" '\033[0m')
+  if normalized_cost=$(normalize_cost "$cost"); then
+    cost_str=$(printf '%b$%s%b' '\033[0;33m' "$(printf '%.2f' "$normalized_cost")" '\033[0m')
+  else
+    cost_str=""
+  fi
 else
   cost_str=""
 fi
