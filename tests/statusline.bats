@@ -336,6 +336,24 @@ MOCK
   [[ "$(_strip)" == *'$1000000000000000000000.00'* ]]
 }
 
+@test "cost: scientific notation with extreme negative exponent shows as zero" {
+  _run "$(_json '"cost":{"total_cost_usd":"1E-400"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.00'* ]]
+}
+
+@test "cost: comma decimal with leading zero is not treated as thousands grouping" {
+  _run "$(_json '"cost":{"total_cost_usd":"0,001"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.00'* ]]
+}
+
+@test "cost: non-numeric string with embedded digit is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"abc1"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════

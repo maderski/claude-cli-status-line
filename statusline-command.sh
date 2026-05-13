@@ -41,6 +41,12 @@ normalize_cost() {
     exponent="${BASH_REMATCH[2]}"
   fi
 
+  # Reject strings that aren't parseable as a currency amount (allow leading/trailing
+  # currency symbols like $ or €, but reject embedded letters such as "abc1").
+  if ! [[ "$mantissa" =~ ^[^a-zA-Z0-9]*-?[0-9][0-9,.]*[^a-zA-Z0-9]*$ ]]; then
+    return 1
+  fi
+
   normalized=$(printf '%s' "$mantissa" | tr -cd '0-9,.-')
   if [ -z "$normalized" ] || [ "$normalized" = "-" ]; then
     return 1
@@ -57,7 +63,9 @@ normalize_cost() {
       normalized="${normalized//,/}"
     fi
   elif [ "$comma_suffix" != "$normalized" ]; then
-    if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]]; then
+    # A leading zero before the first comma means it's a decimal separator, not thousands
+    # grouping (e.g. "0,001" → 0.001, not the integer 0001).
+    if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]] && ! [[ "$normalized" =~ ^-?0, ]]; then
       normalized="${normalized//,/}"
     else
       normalized="${normalized//,/.}"
@@ -66,7 +74,14 @@ normalize_cost() {
 
   normalized="${normalized}${exponent}"
 
-  if ! awk -v value="$normalized" 'BEGIN { exit !(value + 0 > 0) }'; then
+  # Accept very small scientific values that underflow to 0.0 in floating point but
+  # are still positive (they will display as $0.00 via printf %.2f).
+  if ! awk -v value="$normalized" 'BEGIN {
+    v = value + 0
+    if (v > 0) exit 0
+    if (v < 0) exit 1
+    exit !(value ~ /[1-9]/)
+  }'; then
     return 1
   fi
 
