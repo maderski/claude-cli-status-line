@@ -354,10 +354,10 @@ MOCK
   [[ "$(_strip)" != *'$'* ]]
 }
 
-@test "cost: comma decimal with zero-padded group is not treated as thousands" {
+@test "cost: comma-grouped thousands with zero-padded group are normalized correctly" {
   _run "$(_json '"cost":{"total_cost_usd":"1,001"}')"
   [ "$status" -eq 0 ]
-  [[ "$(_strip)" == *'$1.00'* ]]
+  [[ "$(_strip)" == *'$1001.00'* ]]
 }
 
 @test "cost: European dot-grouped integer with euro prefix is normalized correctly" {
@@ -376,6 +376,26 @@ MOCK
   _run "$(_json '"cost":{"total_cost_usd":"$1.234"}')"
   [ "$status" -eq 0 ]
   [[ "$(_strip)" == *'$1.23'* ]]
+}
+
+@test "cost: malformed comma separators are hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,2,3"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"1,,2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: malformed dot separators are hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.2.3"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"12..34"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════

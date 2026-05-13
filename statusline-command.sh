@@ -18,7 +18,7 @@ input=$(cat)
 } < <(echo "$input" | jq -r '
   (.context_window.used_percentage // 0),
   (.output_style.name // ""),
-  (if (.cost.total_cost_usd | type) == "number" then (.cost.total_cost_usd | tostring) else "" end),
+  (if (.cost.total_cost_usd | type) == "number" or (.cost.total_cost_usd | type) == "string" then (.cost.total_cost_usd | tostring) else "" end),
   (.cost.total_duration_ms // ""),
   ((.cost.total_lines_added // 0) | tonumber? // 0 | floor),
   ((.cost.total_lines_removed // 0) | tonumber? // 0 | floor),
@@ -37,6 +37,8 @@ normalize_cost() {
   local dot_suffix
   local comma_count
   local dot_count
+  local numeric_pattern='^-?[0-9]+([.][0-9]+)?$'
+  local scientific_pattern='^-?([0-9]+([.][0-9]+)?)([eE][+-]?[0-9]+)?$'
 
   if [[ "$raw" =~ ^(.*)([eE][+-]?[0-9]+)$ ]]; then
     mantissa="${BASH_REMATCH[1]}"
@@ -66,15 +68,11 @@ normalize_cost() {
     fi
   elif [ "$comma_suffix" != "$normalized" ]; then
     # Comma-only: treat as thousands when the pattern is unambiguous.
-    # Ambiguous single groups are resolved by their first digit: a zero-padded group
-    # (e.g. "1,001") can't be thousands-grouped, so the comma is a decimal separator.
-    # Non-zero-padded single groups (e.g. "1,234") are treated as thousands because
-    # zero-padded groups (e.g. "1,001" → ,001 starts with 0) are redirected to the
-    # decimal path. Multiple groups (e.g. "12,345,678") are unambiguously thousands.
+    # Single or repeated `,ddd` groups are thousands, except when the first group is 0
+    # (e.g. "0,001"), which stays on the decimal path.
     comma_count="${normalized//[^,]/}"
     if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]] \
-        && ! [[ "$normalized" =~ ^-?0, ]] \
-        && { [ "${#comma_count}" -gt 1 ] || ! [[ "$normalized" =~ ,[0][0-9]{2}$ ]]; }; then
+        && ! [[ "$normalized" =~ ^-?0, ]]; then
       normalized="${normalized//,/}"
     else
       normalized="${normalized//,/.}"
@@ -86,14 +84,24 @@ normalize_cost() {
     # Other currencies that use dot-thousands notation (CHF, kr, etc.) are not
     # detected here — without a separator pair they're indistinguishable from decimals.
     dot_count="${normalized//[^.]/}"
-    if [ "${#dot_count}" -gt 1 ]; then
+    if [ "${#dot_count}" -gt 1 ] && [[ "$normalized" =~ ^-?[0-9]{1,3}(\.[0-9]{3})+$ ]]; then
       normalized="${normalized//./}"
+    elif [ "${#dot_count}" -gt 1 ]; then
+      return 1
     elif [[ "$normalized" =~ ^-?[0-9]{1,3}\.[0-9]{3}$ ]] && [[ "$raw" == *€* ]]; then
       normalized="${normalized//./}"
     fi
   fi
 
+  if ! [[ "$normalized" =~ $numeric_pattern ]]; then
+    return 1
+  fi
+
   normalized="${normalized}${exponent}"
+
+  if ! [[ "$normalized" =~ $scientific_pattern ]]; then
+    return 1
+  fi
 
   # Accept very small scientific values that underflow to 0.0 in floating point but
   # are still positive (they will display as $0.00 via printf %.2f).
