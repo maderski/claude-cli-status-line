@@ -372,6 +372,12 @@ MOCK
   [[ "$(_strip)" == *'$1234567.00'* ]]
 }
 
+@test "cost: US dollar with dot decimal and three fractional digits is not treated as thousands" {
+  _run "$(_json '"cost":{"total_cost_usd":"$1.234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1.23'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════
