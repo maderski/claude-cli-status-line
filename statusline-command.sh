@@ -35,6 +35,8 @@ normalize_cost() {
   local normalized
   local comma_suffix
   local dot_suffix
+  local comma_count
+  local dot_count
 
   if [[ "$raw" =~ ^(.*)([eE][+-]?[0-9]+)$ ]]; then
     mantissa="${BASH_REMATCH[1]}"
@@ -63,12 +65,26 @@ normalize_cost() {
       normalized="${normalized//,/}"
     fi
   elif [ "$comma_suffix" != "$normalized" ]; then
-    # A leading zero before the first comma means it's a decimal separator, not thousands
-    # grouping (e.g. "0,001" → 0.001, not the integer 0001).
-    if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]] && ! [[ "$normalized" =~ ^-?0, ]]; then
+    # Comma-only: treat as thousands when the pattern is unambiguous.
+    # Ambiguous single groups are resolved by their first digit: a zero-padded group
+    # (e.g. "1,001") can't be thousands-grouped, so the comma is a decimal separator.
+    comma_count="${normalized//[^,]/}"
+    if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]] \
+        && ! [[ "$normalized" =~ ^-?0, ]] \
+        && { [ "${#comma_count}" -gt 1 ] || ! [[ "$normalized" =~ ,[0][0-9]{2}$ ]]; }; then
       normalized="${normalized//,/}"
     else
       normalized="${normalized//,/.}"
+    fi
+  elif [ "$dot_suffix" != "$normalized" ]; then
+    # Dot-only: detect European thousands grouping.
+    # Multiple dots (e.g. 1.234.567) are unambiguously thousands; a single dot with
+    # exactly 3 decimal digits and a € prefix (e.g. €1.234) is also thousands.
+    dot_count="${normalized//[^.]/}"
+    if [ "${#dot_count}" -gt 1 ]; then
+      normalized="${normalized//./}"
+    elif [[ "$normalized" =~ ^-?[0-9]{1,3}\.[0-9]{3}$ ]] && [[ "$raw" == *€* ]]; then
+      normalized="${normalized//./}"
     fi
   fi
 

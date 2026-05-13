@@ -354,6 +354,24 @@ MOCK
   [[ "$(_strip)" != *'$'* ]]
 }
 
+@test "cost: comma decimal with zero-padded group is not treated as thousands" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,001"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1.00'* ]]
+}
+
+@test "cost: European dot-grouped integer with euro prefix is normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"€1.234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.00'* ]]
+}
+
+@test "cost: multiple dot-grouped thousands without decimal are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.234.567"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234567.00'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════
