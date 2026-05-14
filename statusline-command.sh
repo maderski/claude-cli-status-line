@@ -91,7 +91,7 @@ normalize_cost() {
       normalized="${normalized//./}"
     elif [ "${#dot_count}" -gt 1 ]; then
       return 1
-    elif [ -z "$exponent" ] && [[ "$normalized" =~ ^-?[0-9]{1,3}\.[0-9]{3}$ ]] && [[ "$raw" == *€* ]]; then
+    elif [ -z "$exponent" ] && [[ "$normalized" =~ ^-?[1-9][0-9]{0,2}\.[0-9]{3}$ ]] && [[ "$raw" == *€* ]]; then
       normalized="${normalized//./}"
     fi
   fi

@@ -366,6 +366,16 @@ MOCK
   [[ "$(_strip)" == *'$1234.00'* ]]
 }
 
+@test "cost: euro prefix with leading-zero integer part is treated as decimal not thousands" {
+  _run "$(_json '"cost":{"total_cost_usd":"€0.001"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.00'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"€0.234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.23'* ]]
+}
+
 @test "cost: multiple dot-grouped thousands without decimal are normalized correctly" {
   _run "$(_json '"cost":{"total_cost_usd":"1.234.567"}')"
   [ "$status" -eq 0 ]
@@ -410,6 +420,12 @@ MOCK
   [[ "$(_strip)" == *'$123.40'* ]]
 }
 
+@test "cost: EU mixed separators without currency prefix are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.234,56"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.56'* ]]
+}
+
 @test "cost: malformed mixed separators are hidden" {
   _run "$(_json '"cost":{"total_cost_usd":"1,23.45"}')"
   [ "$status" -eq 0 ]
@@ -428,6 +444,18 @@ MOCK
 
 @test "cost: negative cost value is hidden" {
   _run "$(_json '"cost":{"total_cost_usd":-1.50}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: negative string cost is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"-1.50"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: zero string cost is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"0.00"}')"
   [ "$status" -eq 0 ]
   [[ "$(_strip)" != *'$'* ]]
 }
@@ -497,6 +525,24 @@ MOCK
 @test "duration: shows hours minutes seconds for one hour or more" {
   _run "$(_json '"cost":{"total_duration_ms":3661000}')"  # 1h1m1s
   [[ "$(_strip)" == *"1h1m1s"* ]]
+}
+
+@test "duration: shows 0s for zero milliseconds" {
+  _run "$(_json '"cost":{"total_duration_ms":0}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"0s"* ]]
+}
+
+@test "duration: shows 1m0s at exactly 60 seconds" {
+  _run "$(_json '"cost":{"total_duration_ms":60000}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"1m0s"* ]]
+}
+
+@test "duration: shows 1h0m0s at exactly one hour" {
+  _run "$(_json '"cost":{"total_duration_ms":3600000}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"1h0m0s"* ]]
 }
 
 @test "duration: hidden when absent from payload" {
