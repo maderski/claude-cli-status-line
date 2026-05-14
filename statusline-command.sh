@@ -47,7 +47,7 @@ normalize_cost() {
 
   # Reject strings that aren't parseable as a currency amount (allow leading/trailing
   # currency symbols like $ or €, but reject embedded letters such as "abc1").
-  if ! [[ "$mantissa" =~ ^[^a-zA-Z0-9]*-?[0-9][0-9,.]*[^a-zA-Z0-9]*$ ]]; then
+  if ! [[ "$mantissa" =~ ^[^a-zA-Z0-9()]*-?[0-9][0-9,.]*[^a-zA-Z0-9()]*$ ]]; then
     return 1
   fi
 
