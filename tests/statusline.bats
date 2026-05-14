@@ -426,6 +426,36 @@ MOCK
   [[ "$(_strip)" != *'$'* ]]
 }
 
+@test "cost: negative cost value is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":-1.50}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: euro prefix with two decimal digits is treated as decimal not thousands" {
+  _run "$(_json '"cost":{"total_cost_usd":"€1.23"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1.23'* ]]
+}
+
+@test "cost: multi-dot European thousands with decimal separator are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.234.567,89"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234567.89'* ]]
+}
+
+@test "cost: multi-dot thousands mantissa with exponent is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.234.567E2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: alphabetic currency prefix is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"CHF1.234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════
