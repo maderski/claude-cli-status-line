@@ -282,6 +282,242 @@ MOCK
   [[ "$(_strip)" == *'$12.34'* ]]
 }
 
+@test "cost: comma decimal string with dollar sign is normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"$0,01"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.01'* ]]
+}
+
+@test "cost: comma decimal string with currency symbol increments past zero" {
+  _run "$(_json '"cost":{"total_cost_usd":"$1,23"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1.23'* ]]
+}
+
+@test "cost: comma-grouped thousands without decimal separator are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.00'* ]]
+}
+
+@test "cost: multiple comma-grouped thousands without decimal separator are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"12,345,678"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$12345678.00'* ]]
+}
+
+@test "cost: localized zero value with currency symbol stays hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"€0,00"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: European thousands and decimal separators are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"€1.234,56"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.56'* ]]
+}
+
+@test "cost: US thousands and decimal separators are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"$1,234.56"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.56'* ]]
+}
+
+@test "cost: scientific notation preserves negative exponent values" {
+  _run "$(_json '"cost":{"total_cost_usd":"1E-7"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.00'* ]]
+}
+
+@test "cost: scientific notation preserves positive exponent values" {
+  _run "$(_json '"cost":{"total_cost_usd":"1E+21"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1000000000000000000000.00'* ]]
+}
+
+@test "cost: scientific notation with extreme negative exponent shows as zero" {
+  _run "$(_json '"cost":{"total_cost_usd":"1E-400"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.00'* ]]
+}
+
+@test "cost: comma decimal with leading zero is not treated as thousands grouping" {
+  _run "$(_json '"cost":{"total_cost_usd":"0,001"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.00'* ]]
+}
+
+@test "cost: non-numeric string with embedded digit is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"abc1"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: comma-grouped thousands with zero-padded group are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,001"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1001.00'* ]]
+}
+
+@test "cost: European dot-grouped integer with euro prefix is normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"€1.234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.00'* ]]
+}
+
+@test "cost: euro prefix with leading-zero integer part is treated as decimal not thousands" {
+  _run "$(_json '"cost":{"total_cost_usd":"€0.001"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.00'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"€0.234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.23'* ]]
+}
+
+@test "cost: multiple dot-grouped thousands without decimal are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.234.567"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234567.00'* ]]
+}
+
+@test "cost: US dollar with dot decimal and three fractional digits is not treated as thousands" {
+  _run "$(_json '"cost":{"total_cost_usd":"$1.234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1.23'* ]]
+}
+
+@test "cost: malformed comma separators are hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,2,3"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"1,,2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: malformed dot separators are hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.2.3"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"12..34"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: comma scientific mantissa is treated as decimal" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,234E-2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.01'* ]]
+}
+
+@test "cost: euro scientific mantissa skips dot-thousands rewrite" {
+  _run "$(_json '"cost":{"total_cost_usd":"€1.234E2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$123.40'* ]]
+}
+
+@test "cost: EU mixed separators without currency prefix are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.234,56"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234.56'* ]]
+}
+
+@test "cost: malformed mixed separators are hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,23.45"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"1.23,45"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: accounting-style parentheses are rejected not sign-flipped" {
+  _run "$(_json '"cost":{"total_cost_usd":"($1.23)"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: negative cost value is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":-1.50}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: negative string cost is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"-1.50"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: zero string cost is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"0.00"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: euro prefix with two decimal digits is treated as decimal not thousands" {
+  _run "$(_json '"cost":{"total_cost_usd":"€1.23"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1.23'* ]]
+}
+
+@test "cost: multi-dot European thousands with decimal separator are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.234.567,89"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$1234567.89'* ]]
+}
+
+@test "cost: multi-dot thousands mantissa with exponent is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1.234.567E2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: alphabetic currency prefix is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"CHF1.234"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: plain integer total_cost_usd is shown correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":2}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$2.00'* ]]
+}
+
+@test "cost: trailing comma is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: US mixed separators with exponent are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,234.56E2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$123456.00'* ]]
+}
+
+@test "cost: negative underflowed scientific cost is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"-1e-400"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: zero with non-zero exponent is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"0E9"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"0e-12"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -299,6 +535,24 @@ MOCK
 @test "duration: shows hours minutes seconds for one hour or more" {
   _run "$(_json '"cost":{"total_duration_ms":3661000}')"  # 1h1m1s
   [[ "$(_strip)" == *"1h1m1s"* ]]
+}
+
+@test "duration: shows 0s for zero milliseconds" {
+  _run "$(_json '"cost":{"total_duration_ms":0}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"0s"* ]]
+}
+
+@test "duration: shows 1m0s at exactly 60 seconds" {
+  _run "$(_json '"cost":{"total_duration_ms":60000}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"1m0s"* ]]
+}
+
+@test "duration: shows 1h0m0s at exactly one hour" {
+  _run "$(_json '"cost":{"total_duration_ms":3600000}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"1h0m0s"* ]]
 }
 
 @test "duration: hidden when absent from payload" {

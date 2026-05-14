@@ -18,7 +18,7 @@ input=$(cat)
 } < <(echo "$input" | jq -r '
   (.context_window.used_percentage // 0),
   (.output_style.name // ""),
-  (if (.cost.total_cost_usd // 0) > 0 then (.cost.total_cost_usd | tostring) else "" end),
+  (if (.cost.total_cost_usd | type) == "number" or (.cost.total_cost_usd | type) == "string" then (.cost.total_cost_usd | tostring) else "" end),
   (.cost.total_duration_ms // ""),
   ((.cost.total_lines_added // 0) | tonumber? // 0 | floor),
   ((.cost.total_lines_removed // 0) | tonumber? // 0 | floor),
@@ -27,6 +27,98 @@ input=$(cat)
   (.worktree.name // ""),
   (.model.display_name // "")
 ')
+
+normalize_cost() {
+  local raw="$1"
+  local mantissa="$raw"
+  local exponent=""
+  local normalized
+  local comma_suffix
+  local dot_suffix
+  local dot_count
+  local numeric_pattern='^-?[0-9]+([.][0-9]+)?$'
+
+  if [[ "$raw" =~ ^(.*)([eE][+-]?[0-9]+)$ ]]; then
+    mantissa="${BASH_REMATCH[1]}"
+    exponent="${BASH_REMATCH[2]}"
+  fi
+
+  # Reject strings that aren't parseable as a currency amount (allow leading/trailing
+  # currency symbols like $ or €, but reject embedded letters such as "abc1").
+  if ! [[ "$mantissa" =~ ^[^a-zA-Z0-9()]*-?[0-9][0-9,.]*[^a-zA-Z0-9()]*$ ]]; then
+    return 1
+  fi
+
+  normalized=$(printf '%s' "$mantissa" | tr -cd '0-9,.-')
+  if [ -z "$normalized" ] || [ "$normalized" = "-" ]; then
+    return 1
+  fi
+
+  comma_suffix="${normalized##*,}"
+  dot_suffix="${normalized##*.}"
+
+  if [ "$comma_suffix" != "$normalized" ] && [ "$dot_suffix" != "$normalized" ]; then
+    if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+\.[0-9]+$ ]]; then
+      normalized="${normalized//,/}"
+    elif [[ "$normalized" =~ ^-?[0-9]{1,3}(\.[0-9]{3})+,[0-9]+$ ]]; then
+      normalized="${normalized//./}"
+      normalized="${normalized//,/.}"
+    else
+      return 1
+    fi
+  elif [ "$comma_suffix" != "$normalized" ]; then
+    # Comma-only: treat as thousands when the pattern is unambiguous.
+    # Single or repeated `,ddd` groups are thousands, except when the first group is 0
+    # (e.g. "0,001"), which stays on the decimal path.
+    if [ -n "$exponent" ]; then
+      normalized="${normalized//,/.}"
+    elif [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]] \
+        && ! [[ "$normalized" =~ ^-?0, ]]; then
+      normalized="${normalized//,/}"
+    else
+      normalized="${normalized//,/.}"
+    fi
+  elif [ "$dot_suffix" != "$normalized" ]; then
+    # Dot-only: detect European thousands grouping.
+    # Multiple dots (e.g. 1.234.567) are unambiguously thousands; a single dot with
+    # exactly 3 decimal digits and a € prefix (e.g. €1.234) is also thousands.
+    # Other currencies that use dot-thousands notation (CHF, kr, etc.) are not
+    # detected here — without a separator pair they're indistinguishable from decimals.
+    dot_count="${normalized//[^.]/}"
+    if [ -n "$exponent" ] && [ "${#dot_count}" -gt 1 ]; then
+      return 1
+    elif [ "${#dot_count}" -gt 1 ] && [[ "$normalized" =~ ^-?[0-9]{1,3}(\.[0-9]{3})+$ ]]; then
+      normalized="${normalized//./}"
+    elif [ "${#dot_count}" -gt 1 ]; then
+      return 1
+    elif [ -z "$exponent" ] && [[ "$normalized" =~ ^-?[1-9][0-9]{0,2}\.[0-9]{3}$ ]] && [[ "$raw" == *€* ]]; then
+      normalized="${normalized//./}"
+    fi
+  fi
+
+  if ! [[ "$normalized" =~ $numeric_pattern ]]; then
+    return 1
+  fi
+
+  normalized="${normalized}${exponent}"
+
+  # Accept very small scientific values that underflow to 0.0 in floating point but
+  # are still positive (they will display as $0.00 via printf %.2f).
+  # The !~ /^-/ guard is needed because negative underflows (-1e-400) reach -0.0 in
+  # awk which compares equal to 0, bypassing the v < 0 branch.
+  # The mantissa check uses the pre-exponent raw mantissa so that zero-valued inputs
+  # with non-zero exponents (e.g. "0E9") are not mistaken for underflowed positives.
+  if ! awk -v value="$normalized" -v mant="$mantissa" 'BEGIN {
+    v = value + 0
+    if (v > 0) exit 0
+    if (v < 0) exit 1
+    exit !(value !~ /^-/ && mant ~ /[1-9]/)
+  }'; then
+    return 1
+  fi
+
+  printf '%s' "$normalized"
+}
 
 # --- Context window ---
 pct_int=${pct%.*}
@@ -79,8 +171,11 @@ fi
 
 # --- Cost ---
 if [ -n "$cost" ]; then
-  cost="${cost//,/.}"
-  cost_str=$(printf '%b$%s%b' '\033[0;33m' "$(printf '%.2f' "$cost")" '\033[0m')
+  if normalized_cost=$(normalize_cost "$cost"); then
+    cost_str=$(printf '%b$%s%b' '\033[0;33m' "$(printf '%.2f' "$normalized_cost")" '\033[0m')
+  else
+    cost_str=""
+  fi
 else
   cost_str=""
 fi
