@@ -104,11 +104,13 @@ normalize_cost() {
 
   # Accept very small scientific values that underflow to 0.0 in floating point but
   # are still positive (they will display as $0.00 via printf %.2f).
+  # The !~ /^-/ guard is needed because negative underflows (-1e-400) reach -0.0 in
+  # awk which compares equal to 0, bypassing the v < 0 branch.
   if ! awk -v value="$normalized" 'BEGIN {
     v = value + 0
     if (v > 0) exit 0
     if (v < 0) exit 1
-    exit !(value ~ /[1-9]/)
+    exit !(value !~ /^-/ && value ~ /[1-9]/)
   }'; then
     return 1
   fi
