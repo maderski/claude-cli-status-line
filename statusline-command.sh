@@ -35,10 +35,8 @@ normalize_cost() {
   local normalized
   local comma_suffix
   local dot_suffix
-  local comma_count
   local dot_count
   local numeric_pattern='^-?[0-9]+([.][0-9]+)?$'
-  local scientific_pattern='^-?([0-9]+([.][0-9]+)?)([eE][+-]?[0-9]+)?$'
 
   if [[ "$raw" =~ ^(.*)([eE][+-]?[0-9]+)$ ]]; then
     mantissa="${BASH_REMATCH[1]}"
@@ -72,7 +70,6 @@ normalize_cost() {
     # Comma-only: treat as thousands when the pattern is unambiguous.
     # Single or repeated `,ddd` groups are thousands, except when the first group is 0
     # (e.g. "0,001"), which stays on the decimal path.
-    comma_count="${normalized//[^,]/}"
     if [ -n "$exponent" ]; then
       normalized="${normalized//,/.}"
     elif [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]] \
@@ -104,10 +101,6 @@ normalize_cost() {
   fi
 
   normalized="${normalized}${exponent}"
-
-  if ! [[ "$normalized" =~ $scientific_pattern ]]; then
-    return 1
-  fi
 
   # Accept very small scientific values that underflow to 0.0 in floating point but
   # are still positive (they will display as $0.00 via printf %.2f).

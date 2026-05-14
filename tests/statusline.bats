@@ -456,6 +456,24 @@ MOCK
   [[ "$(_strip)" != *'$'* ]]
 }
 
+@test "cost: plain integer total_cost_usd is shown correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":2}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$2.00'* ]]
+}
+
+@test "cost: trailing comma is hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
+@test "cost: US mixed separators with exponent are normalized correctly" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,234.56E2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$123456.00'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════
