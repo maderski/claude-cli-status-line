@@ -60,18 +60,22 @@ normalize_cost() {
   dot_suffix="${normalized##*.}"
 
   if [ "$comma_suffix" != "$normalized" ] && [ "$dot_suffix" != "$normalized" ]; then
-    if [ "${#comma_suffix}" -lt "${#dot_suffix}" ]; then
+    if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+\.[0-9]+$ ]]; then
+      normalized="${normalized//,/}"
+    elif [[ "$normalized" =~ ^-?[0-9]{1,3}(\.[0-9]{3})+,[0-9]+$ ]]; then
       normalized="${normalized//./}"
       normalized="${normalized//,/.}"
     else
-      normalized="${normalized//,/}"
+      return 1
     fi
   elif [ "$comma_suffix" != "$normalized" ]; then
     # Comma-only: treat as thousands when the pattern is unambiguous.
     # Single or repeated `,ddd` groups are thousands, except when the first group is 0
     # (e.g. "0,001"), which stays on the decimal path.
     comma_count="${normalized//[^,]/}"
-    if [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]] \
+    if [ -n "$exponent" ]; then
+      normalized="${normalized//,/.}"
+    elif [[ "$normalized" =~ ^-?[0-9]{1,3}(,[0-9]{3})+$ ]] \
         && ! [[ "$normalized" =~ ^-?0, ]]; then
       normalized="${normalized//,/}"
     else
@@ -84,11 +88,13 @@ normalize_cost() {
     # Other currencies that use dot-thousands notation (CHF, kr, etc.) are not
     # detected here — without a separator pair they're indistinguishable from decimals.
     dot_count="${normalized//[^.]/}"
-    if [ "${#dot_count}" -gt 1 ] && [[ "$normalized" =~ ^-?[0-9]{1,3}(\.[0-9]{3})+$ ]]; then
+    if [ -n "$exponent" ] && [ "${#dot_count}" -gt 1 ]; then
+      return 1
+    elif [ "${#dot_count}" -gt 1 ] && [[ "$normalized" =~ ^-?[0-9]{1,3}(\.[0-9]{3})+$ ]]; then
       normalized="${normalized//./}"
     elif [ "${#dot_count}" -gt 1 ]; then
       return 1
-    elif [[ "$normalized" =~ ^-?[0-9]{1,3}\.[0-9]{3}$ ]] && [[ "$raw" == *€* ]]; then
+    elif [ -z "$exponent" ] && [[ "$normalized" =~ ^-?[0-9]{1,3}\.[0-9]{3}$ ]] && [[ "$raw" == *€* ]]; then
       normalized="${normalized//./}"
     fi
   fi

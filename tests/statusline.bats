@@ -398,6 +398,28 @@ MOCK
   [[ "$(_strip)" != *'$'* ]]
 }
 
+@test "cost: comma scientific mantissa is treated as decimal" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,234E-2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$0.01'* ]]
+}
+
+@test "cost: euro scientific mantissa skips dot-thousands rewrite" {
+  _run "$(_json '"cost":{"total_cost_usd":"€1.234E2"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *'$123.40'* ]]
+}
+
+@test "cost: malformed mixed separators are hidden" {
+  _run "$(_json '"cost":{"total_cost_usd":"1,23.45"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+
+  _run "$(_json '"cost":{"total_cost_usd":"1.23,45"}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *'$'* ]]
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Duration
 # ═══════════════════════════════════════════════════════════════════════════════
