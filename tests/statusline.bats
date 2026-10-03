@@ -606,6 +606,14 @@ MOCK
   [[ "$(_strip)" == *"main"* ]]
 }
 
+@test "git: branch uses bright blue ANSI color" {
+  _run "$(_json)"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"main"* ]]
+  _has_ansi $'\033[0;94m'
+  ! _has_ansi $'\033[0;34m'
+}
+
 @test "git: reads from cache and skips git call when cache is fresh" {
   echo "cached-branch" > "$CACHE_FILE"
   chmod 600 "$CACHE_FILE"
@@ -642,8 +650,8 @@ MOCK
   _mock_git_fail
   _run "$(_json)"
   [ "$status" -eq 0 ]
-  # Blue is only used for git; its absence means the branch segment is hidden
-  ! _has_ansi $'\033[0;34m'
+  # Bright blue is only used for git; its absence means the branch segment is hidden
+  ! _has_ansi $'\033[0;94m'
 }
 
 @test "git: shows non-default branch name" {

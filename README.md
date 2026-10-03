@@ -14,7 +14,7 @@ A compact status line for [Claude Code](https://docs.anthropic.com/en/docs/claud
 | Session cost | `$1.23` | Yellow |
 | Duration | `12m34s` | Dim |
 | Lines changed | `+50 -12` | Green/red |
-| Git branch | `main` | Blue |
+| Git branch | `main` | Bright blue |
 | Agent or worktree | `[code-builder]` or `[wt:feature]` | Magenta |
 
 Unavailable values are omitted automatically. The Git branch is cached for five seconds per workspace to keep prompt rendering fast.
