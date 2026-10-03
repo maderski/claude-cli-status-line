@@ -120,12 +120,12 @@ Plan: Build Out Claude Code Status Line
  fi
 
  if [ -n "$branch" ]; then
-   git_str=$(printf '%b %s%b' '\033[0;34m' "$branch" '\033[0m')
+   git_str=$(printf '%b %s%b' '\033[0;94m' "$branch" '\033[0m')
  else
    git_str=""
  fi
 
- Display as  main in blue (using a Unicode branch symbol).
+ Display as  main in bright blue (using a Unicode branch symbol).
 
  Step 4: Add lines changed segment
 

@@ -254,7 +254,7 @@ else
 fi
 
 if [ -n "$branch" ]; then
-  git_str=$(printf '%b %s%b' '\033[0;34m' "$branch" '\033[0m')
+  git_str=$(printf '%b %s%b' '\033[0;94m' "$branch" '\033[0m')
 else
   git_str=""
 fi
