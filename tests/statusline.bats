@@ -305,9 +305,9 @@ _json() {
   done
 }
 
-@test "seven day: label is dim and distinct from the 5h style" {
+@test "seven day: label is light gray and distinct from the 5h style" {
   _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":10}}')"
-  [[ "$output" == *$'\033[2m7d\033[0m'* ]]
+  [[ "$output" == *$'\033[0;37m7d\033[0m'* ]]
 }
 
 # Context is pinned at 0% (green) so yellow/red can only come from the 7d segment.

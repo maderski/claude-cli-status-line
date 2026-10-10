@@ -10,7 +10,7 @@ A compact status line for [Claude Code](https://docs.anthropic.com/en/docs/claud
 | --- | --- | --- |
 | Context window | `[████░░░░░░] 42%` | Green below 50%, yellow from 50%, red from 80% |
 | 5-hour session limit | `5h: 23%` | Green below 50%, yellow from 50%, red from 80%. Shown only for claude.ai Pro/Max subscribers after the first response |
-| 7-day session limit | `7d ◑ 41%` | Dim `7d` label and a pie glyph (`○ ◔ ◑ ◕ ●`) that fills with usage, so it reads differently from the 5-hour segment. Same green/yellow/red thresholds. Shown only for claude.ai Pro/Max subscribers after the first response |
+| 7-day session limit | `7d ◑ 41%` | Light gray `7d` label and a pie glyph (`○ ◔ ◑ ◕ ●`) that fills with usage, so it reads differently from the 5-hour segment. Same green/yellow/red thresholds. Shown only for claude.ai Pro/Max subscribers after the first response |
 | Model | `Opus` | Cyan |
 | Effort level | `default` | Magenta |
 | Session cost | `$1.23` | Yellow |

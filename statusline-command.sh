@@ -164,7 +164,7 @@ if [[ "$five_hour_pct" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
 fi
 
 # --- 7-day session limit (claude.ai subscribers only) ---
-# Rendered as a dim "7d" label plus a pie glyph so it can't be mistaken for "5h: N%".
+# Rendered as a light gray "7d" label plus a pie glyph so it can't be mistaken for "5h: N%".
 seven_day_str=""
 if [[ "$seven_day_pct" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
   seven_day_int=${seven_day_pct%.*}
@@ -179,7 +179,7 @@ if [[ "$seven_day_pct" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
   fi
   pie_glyphs=(○ ◔ ◑ ◕ ●)
   seven_day_pie=${pie_glyphs[$(( (seven_day_int + 12) / 25 ))]}
-  seven_day_str=$(printf '%b7d%b %b%s %s%%%b' '\033[2m' '\033[0m' "$seven_day_color" "$seven_day_pie" "$seven_day_int" '\033[0m')
+  seven_day_str=$(printf '%b7d%b %b%s %s%%%b' '\033[0;37m' '\033[0m' "$seven_day_color" "$seven_day_pie" "$seven_day_int" '\033[0m')
 fi
 
 # --- Model ---
