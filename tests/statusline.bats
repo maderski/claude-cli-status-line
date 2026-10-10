@@ -162,6 +162,84 @@ _json() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# 5-hour session limit
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@test "five hour: shows used percentage" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":23,"resets_at":1738425600}}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"5h: 23%"* ]]
+}
+
+@test "five hour: fractional percentage is truncated" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":23.9}}')"
+  [[ "$(_strip)" == *"5h: 23%"* ]]
+}
+
+@test "five hour: appears after the context bar" {
+  _run "$(_json '"context_window":{"used_percentage":10},"rate_limits":{"five_hour":{"used_percentage":42}},"model":{"display_name":"Opus"}')"
+  [[ "$(_strip)" == *"10% | 5h: 42% | Opus"* ]]
+}
+
+@test "five hour: hidden when rate_limits is absent" {
+  _run "$(_json)"
+  [[ "$(_strip)" != *"5h:"* ]]
+}
+
+@test "five hour: hidden when five_hour window is absent" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":41}}')"
+  [[ "$(_strip)" != *"5h:"* ]]
+}
+
+@test "five hour: hidden when used_percentage is null" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":null}}')"
+  [[ "$(_strip)" != *"5h:"* ]]
+}
+
+@test "five hour: hidden when used_percentage is not numeric" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":"abc"}}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *"5h:"* ]]
+}
+
+@test "five hour: zero percent is shown" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":0}}')"
+  [[ "$(_strip)" == *"5h: 0%"* ]]
+}
+
+@test "five hour: values above 100 are clamped" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":130}}')"
+  [[ "$(_strip)" == *"5h: 100%"* ]]
+}
+
+@test "five hour: negative values are clamped to 0" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":-5}}')"
+  [[ "$(_strip)" == *"5h: 0%"* ]]
+}
+
+# Context is pinned at 0% (green) so yellow/red can only come from the 5h segment.
+
+@test "five hour color: green below 50%" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":49}}')"
+  [[ "$output" == *$'\033[0;32m5h: 49%'* ]]
+}
+
+@test "five hour color: yellow at exactly 50%" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":50}}')"
+  [[ "$output" == *$'\033[0;33m5h: 50%'* ]]
+}
+
+@test "five hour color: yellow at 79%" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":79}}')"
+  [[ "$output" == *$'\033[0;33m5h: 79%'* ]]
+}
+
+@test "five hour color: red at exactly 80%" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":80}}')"
+  [[ "$output" == *$'\033[0;31m5h: 80%'* ]]
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Model
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -246,7 +324,7 @@ _json() {
 }
 
 # Simulate jq outputting a comma decimal separator (European locale behavior).
-# The mock outputs all 10 fields the script reads, with cost as a comma-formatted
+# The mock outputs all 11 fields the script reads, with cost as a comma-formatted
 # string. The settings.json jq call is detected by argument and returns empty.
 _mock_jq_comma_cost() {
   local comma_cost="$1"
@@ -256,7 +334,7 @@ if [[ "\$*" == *"settings.json"* ]]; then
   echo ""
   exit 0
 fi
-printf '0\n\n${comma_cost}\n\n0\n0\n${TEST_DIR}\n\n\n\n'
+printf '0\n\n${comma_cost}\n\n0\n0\n${TEST_DIR}\n\n\n\n\n'
 MOCK
   chmod +x "$MOCK_BIN/jq"
 }
