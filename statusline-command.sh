@@ -15,6 +15,7 @@ input=$(cat)
   read -r agent
   read -r worktree
   read -r model_payload
+  read -r five_hour_pct
 } < <(echo "$input" | jq -r '
   (.context_window.used_percentage // 0),
   (.output_style.name // ""),
@@ -25,7 +26,8 @@ input=$(cat)
   (.workspace.current_dir // "."),
   (.agent.name // ""),
   (.worktree.name // ""),
-  (.model.display_name // "")
+  (.model.display_name // ""),
+  (.rate_limits.five_hour.used_percentage // "")
 ')
 
 normalize_cost() {
@@ -142,6 +144,22 @@ elif [ "$pct_int" -ge 50 ]; then color='\033[0;33m'
 else                              color='\033[0;32m'
 fi
 ctx_str=$(printf '%b[%s] %s%%%b' "$color" "$bar" "$pct_int" '\033[0m')
+
+# --- 5-hour session limit (claude.ai subscribers only) ---
+five_hour_str=""
+if [[ "$five_hour_pct" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+  five_hour_int=${five_hour_pct%.*}
+  if [ "$five_hour_int" -lt 0 ]; then
+    five_hour_int=0
+  elif [ "$five_hour_int" -gt 100 ]; then
+    five_hour_int=100
+  fi
+  if   [ "$five_hour_int" -ge 80 ]; then five_hour_color='\033[0;31m'
+  elif [ "$five_hour_int" -ge 50 ]; then five_hour_color='\033[0;33m'
+  else                                   five_hour_color='\033[0;32m'
+  fi
+  five_hour_str=$(printf '%b5h: %s%%%b' "$five_hour_color" "$five_hour_int" '\033[0m')
+fi
 
 # --- Model ---
 # Prefer live payload (updates every prompt); fall back to settings.json
@@ -271,7 +289,7 @@ fi
 # --- Assemble ---
 sep=$(printf '%b | %b' '\033[2m' '\033[0m')
 output=""
-for seg in "$ctx_str" "$model_str" "$effort_str" "$cost_str" "$dur_str" "$lines_str" "$git_str" "$agent_str"; do
+for seg in "$ctx_str" "$five_hour_str" "$model_str" "$effort_str" "$cost_str" "$dur_str" "$lines_str" "$git_str" "$agent_str"; do
   if [ -n "$seg" ]; then
     if [ -n "$output" ]; then
       output="${output}${sep}${seg}"
