@@ -1,6 +1,6 @@
 # Claude CLI Status Line
 
-A compact status line for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that shows context usage, 5-hour session usage, model, effort, cost, duration, changed lines, Git branch, and agent or worktree information.
+A compact status line for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that shows context usage, 5-hour and 7-day session usage, model, effort, cost, duration, changed lines, Git branch, and agent or worktree information.
 
 <img width="923" height="282" alt="Claude Code status line showing context usage, model, cost, duration, changed lines, and Git branch" src="https://github.com/user-attachments/assets/a722e742-96b4-4db4-87e8-44a2a5e440ea" />
 
@@ -10,6 +10,7 @@ A compact status line for [Claude Code](https://docs.anthropic.com/en/docs/claud
 | --- | --- | --- |
 | Context window | `[████░░░░░░] 42%` | Green below 50%, yellow from 50%, red from 80% |
 | 5-hour session limit | `5h: 23%` | Green below 50%, yellow from 50%, red from 80%. Shown only for claude.ai Pro/Max subscribers after the first response |
+| 7-day session limit | `7d ◑ 41%` | Light gray `7d` label and a pie glyph (`○ ◔ ◑ ◕ ●`) that fills with usage, so it reads differently from the 5-hour segment. Same green/yellow/red thresholds. Shown only for claude.ai Pro/Max subscribers after the first response |
 | Model | `Opus` | Cyan |
 | Effort level | `default` | Magenta |
 | Session cost | `$1.23` | Yellow |

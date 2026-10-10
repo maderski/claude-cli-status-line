@@ -16,6 +16,7 @@ input=$(cat)
   read -r worktree
   read -r model_payload
   read -r five_hour_pct
+  read -r seven_day_pct
 } < <(echo "$input" | jq -r '
   (.context_window.used_percentage // 0),
   (.output_style.name // ""),
@@ -27,7 +28,8 @@ input=$(cat)
   (.agent.name // ""),
   (.worktree.name // ""),
   (.model.display_name // ""),
-  (.rate_limits.five_hour.used_percentage // "")
+  (.rate_limits.five_hour.used_percentage // ""),
+  (.rate_limits.seven_day.used_percentage // "")
 ')
 
 normalize_cost() {
@@ -161,6 +163,25 @@ if [[ "$five_hour_pct" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
   five_hour_str=$(printf '%b5h: %s%%%b' "$five_hour_color" "$five_hour_int" '\033[0m')
 fi
 
+# --- 7-day session limit (claude.ai subscribers only) ---
+# Rendered as a light gray "7d" label plus a pie glyph so it can't be mistaken for "5h: N%".
+seven_day_str=""
+if [[ "$seven_day_pct" =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then
+  seven_day_int=${seven_day_pct%.*}
+  if [ "$seven_day_int" -lt 0 ]; then
+    seven_day_int=0
+  elif [ "$seven_day_int" -gt 100 ]; then
+    seven_day_int=100
+  fi
+  if   [ "$seven_day_int" -ge 80 ]; then seven_day_color='\033[0;31m'
+  elif [ "$seven_day_int" -ge 50 ]; then seven_day_color='\033[0;33m'
+  else                                   seven_day_color='\033[0;32m'
+  fi
+  pie_glyphs=(○ ◔ ◑ ◕ ●)
+  seven_day_pie=${pie_glyphs[$(( (seven_day_int + 12) / 25 ))]}
+  seven_day_str=$(printf '%b7d%b %b%s %s%%%b' '\033[0;37m' '\033[0m' "$seven_day_color" "$seven_day_pie" "$seven_day_int" '\033[0m')
+fi
+
 # --- Model ---
 # Prefer live payload (updates every prompt); fall back to settings.json
 if [ -n "$model_payload" ]; then
@@ -289,7 +310,7 @@ fi
 # --- Assemble ---
 sep=$(printf '%b | %b' '\033[2m' '\033[0m')
 output=""
-for seg in "$ctx_str" "$five_hour_str" "$model_str" "$effort_str" "$cost_str" "$dur_str" "$lines_str" "$git_str" "$agent_str"; do
+for seg in "$ctx_str" "$five_hour_str" "$seven_day_str" "$model_str" "$effort_str" "$cost_str" "$dur_str" "$lines_str" "$git_str" "$agent_str"; do
   if [ -n "$seg" ]; then
     if [ -n "$output" ]; then
       output="${output}${sep}${seg}"
