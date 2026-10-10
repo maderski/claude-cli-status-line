@@ -240,6 +240,99 @@ _json() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# 7-day session limit
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@test "seven day: shows used percentage with pie glyph" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":41,"resets_at":1738425600}}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" == *"7d ◑ 41%"* ]]
+}
+
+@test "seven day: fractional percentage is truncated" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":41.9}}')"
+  [[ "$(_strip)" == *"7d ◑ 41%"* ]]
+}
+
+@test "seven day: appears after the 5h segment" {
+  _run "$(_json '"context_window":{"used_percentage":10},"rate_limits":{"five_hour":{"used_percentage":42},"seven_day":{"used_percentage":17}},"model":{"display_name":"Opus"}')"
+  [[ "$(_strip)" == *"10% | 5h: 42% | 7d ◔ 17% | Opus"* ]]
+}
+
+@test "seven day: shown without the 5h segment" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":5}}')"
+  [[ "$(_strip)" == *"7d ○ 5%"* ]]
+  [[ "$(_strip)" != *"5h:"* ]]
+}
+
+@test "seven day: hidden when rate_limits is absent" {
+  _run "$(_json)"
+  [[ "$(_strip)" != *"7d"* ]]
+}
+
+@test "seven day: hidden when seven_day window is absent" {
+  _run "$(_json '"rate_limits":{"five_hour":{"used_percentage":23}}')"
+  [[ "$(_strip)" != *"7d"* ]]
+}
+
+@test "seven day: hidden when used_percentage is null" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":null}}')"
+  [[ "$(_strip)" != *"7d"* ]]
+}
+
+@test "seven day: hidden when used_percentage is not numeric" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":"abc"}}')"
+  [ "$status" -eq 0 ]
+  [[ "$(_strip)" != *"7d"* ]]
+}
+
+@test "seven day: values above 100 are clamped" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":130}}')"
+  [[ "$(_strip)" == *"7d ● 100%"* ]]
+}
+
+@test "seven day: negative values are clamped to 0" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":-5}}')"
+  [[ "$(_strip)" == *"7d ○ 0%"* ]]
+}
+
+@test "seven day pie: glyph boundaries" {
+  local cases=("0:○" "12:○" "13:◔" "37:◔" "38:◑" "62:◑" "63:◕" "87:◕" "88:●" "100:●")
+  local c
+  for c in "${cases[@]}"; do
+    _run "$(_json "\"rate_limits\":{\"seven_day\":{\"used_percentage\":${c%%:*}}}")"
+    [[ "$(_strip)" == *"7d ${c#*:} ${c%%:*}%"* ]]
+  done
+}
+
+@test "seven day: label is dim and distinct from the 5h style" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":10}}')"
+  [[ "$output" == *$'\033[2m7d\033[0m'* ]]
+}
+
+# Context is pinned at 0% (green) so yellow/red can only come from the 7d segment.
+
+@test "seven day color: green below 50%" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":49}}')"
+  [[ "$output" == *$'\033[0;32m◑ 49%'* ]]
+}
+
+@test "seven day color: yellow at exactly 50%" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":50}}')"
+  [[ "$output" == *$'\033[0;33m◑ 50%'* ]]
+}
+
+@test "seven day color: yellow at 79%" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":79}}')"
+  [[ "$output" == *$'\033[0;33m◕ 79%'* ]]
+}
+
+@test "seven day color: red at exactly 80%" {
+  _run "$(_json '"rate_limits":{"seven_day":{"used_percentage":80}}')"
+  [[ "$output" == *$'\033[0;31m◕ 80%'* ]]
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Model
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -324,7 +417,7 @@ _json() {
 }
 
 # Simulate jq outputting a comma decimal separator (European locale behavior).
-# The mock outputs all 11 fields the script reads, with cost as a comma-formatted
+# The mock outputs all 12 fields the script reads, with cost as a comma-formatted
 # string. The settings.json jq call is detected by argument and returns empty.
 _mock_jq_comma_cost() {
   local comma_cost="$1"
@@ -334,7 +427,7 @@ if [[ "\$*" == *"settings.json"* ]]; then
   echo ""
   exit 0
 fi
-printf '0\n\n${comma_cost}\n\n0\n0\n${TEST_DIR}\n\n\n\n\n'
+printf '0\n\n${comma_cost}\n\n0\n0\n${TEST_DIR}\n\n\n\n\n\n'
 MOCK
   chmod +x "$MOCK_BIN/jq"
 }
