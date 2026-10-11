@@ -2,7 +2,7 @@
 
 A compact status line for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that shows context usage, 5-hour and 7-day session usage, model, effort, cost, duration, changed lines, Git branch, and agent or worktree information.
 
-<img width="923" height="282" alt="Claude Code status line showing context usage, model, cost, duration, changed lines, and Git branch" src="https://github.com/user-attachments/assets/a722e742-96b4-4db4-87e8-44a2a5e440ea" />
+<img width="890" height="135" alt="Claude Code status line showing context usage, model, cost, duration, changed lines, and Git branch" src="https://github.com/user-attachments/assets/8278db75-b967-420a-9d7e-5e60685c332e" />
 
 ## What It Shows
 
